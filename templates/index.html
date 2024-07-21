@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Парсер резюме и вакансий</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .container { display: flex; justify-content: space-between; }
+        .column { width: 48%; }
+        .results { margin-top: 20px; }
+        .item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Парсер резюме и вакансий</h1>
+    <div class="container">
+        <div class="column">
+            <h2>Парсер резюме</h2>
+            <form id="resume-form">
+                <input type="text" id="search-text" placeholder="Введите текст для поиска резюме" required>
+                <button type="submit">Анализировать резюме</button>
+            </form>
+            <div id="resume-status"></div>
+            <div id="resume-results" class="results"></div>
+        </div>
+        <div class="column">
+            <h2>Получатель вакансий</h2>
+            <form id="vacancy-form">
+                <input type="text" id="job-title" placeholder="Введите название должности для поиска вакансий" required>
+                <button type="submit">Получить вакансии</button>
+            </form>
+            <div id="vacancy-status"></div>
+            <div id="vacancy-results" class="results"></div>
+        </div>
+    </div>
+
+    <h2>Список всех вакансий</h2>
+    <div id="all-vacancies" class="results">
+        {% for vacancy in vacancies %}
+        <div class="item">
+            <h3>{{ vacancy['Наименование вакансии'] }}</h3>
+            <p>Компания: {{ vacancy['Имя компании'] }}</p>
+            <p>График работы: {{ vacancy['График работы'] }}</p>
+            <p>Регион: {{ vacancy['Регион'] }}</p>
+            <p><a href="{{ vacancy['Ссылка'] }}" target="_blank">Подробнее о вакансии</a></p>
+            <p><a href="{{ vacancy['Ссылка на компанию'] }}" target="_blank">Страница компании</a></p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#resume-form').submit(function(e) {
+                e.preventDefault();
+                $.post('/parse_resumes', {search_text: $('#search-text').val()}, function(data) {
+                    $('#resume-status').text(data.message);
+                    if (data.status === 'success') {
+                        checkStatus();
+                    }
+                });
+            });
+
+            $('#vacancy-form').submit(function(e) {
+                e.preventDefault();
+                $.post('/fetch_vacancies', {job_title: $('#job-title').val()}, function(data) {
+                    $('#vacancy-status').text(data.message);
+                    if (data.status === 'success') {
+                        checkStatus();
+                    }
+                });
+            });
+
+            function checkStatus() {
+                $.getJSON('/status', function(data) {
+                    if (data.is_parsing_resumes) {
+                        $('#resume-status').text('Анализ резюме в процессе... Найдено ' + data.resume_results.length + ' резюме');
+                        displayResumes(data.resume_results);
+                    } else if (data.resume_results.length > 0) {
+                        $('#resume-status').text('Анализ резюме завершен. Найдено ' + data.resume_results.length + ' резюме');
+                        displayResumes(data.resume_results);
+                    }
+
+                    if (data.is_fetching_vacancies) {
+                        $('#vacancy-status').text('Поиск вакансий в процессе... Найдено ' + data.vacancy_results.length + ' вакансий');
+                        displayVacancies(data.vacancy_results);
+                    } else if (data.vacancy_results.length > 0) {
+                        $('#vacancy-status').text('Поиск вакансий завершен. Найдено ' + data.vacancy_results.length + ' вакансий');
+                        displayVacancies(data.vacancy_results);
+                    }
+
+                    if (data.is_parsing_resumes || data.is_fetching_vacancies) {
+                        setTimeout(checkStatus, 5000);
+                    }
+                });
+            }
+
+            function displayResumes(results) {
+                var $results = $('#resume-results');
+                $results.empty();
+                results.forEach(function(resume) {
+                    $results.append(
+                        '<div class="item">' +
+                        '<h3>' + resume.name + '</h3>' +
+                        '<p>Возраст: ' + resume.age + '</p>' +
+                        '<p>Зарплата: ' + resume.salary + '</p>' +
+                        '<p>Теги: ' + resume.tags.join(', ') + '</p>' +
+                        '<p><a href="' + resume.link + '" target="_blank">Посмотреть резюме</a></p>' +
+                        '</div>'
+                    );
+                });
+            }
+
+            function displayVacancies(results) {
+                var $results = $('#vacancy-results');
+                $results.empty();
+                results.forEach(function(vacancy) {
+                    $results.append(
+                        '<div class="item">' +
+                        '<h3>' + vacancy['Наименование вакансии'] + '</h3>' +
+                        '<p>Компания: ' + vacancy['Имя компании'] + '</p>' +
+                        '<p>График работы: ' + vacancy['График работы'] + '</п>' +
+                        '<п>Регион: ' + vacancy['Регион'] + '</п>' +
+                        '<п><а href="' + vacancy['Ссылка'] + '" target="_blank">Подробнее о вакансии</а></п>' +
+                        '<п><а href="' + vacancy['Ссылка на компанию'] + '" target="_blank">Страница компании</а></п>' +
+                        '</div>'
+                    );
+                });
+            }
+        });
+    </script>
+</body>
+</html>

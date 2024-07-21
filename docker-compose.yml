@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    ports:
+      - "5000:5000"
+    networks:
+      - backend
+
+  test:
+    build:
+      context: .
+      dockerfile: test/Dockerfile
+    networks:
+      - backend
+
+  resume_parser:
+    build:
+      context: .
+      dockerfile: resume_parser/Dockerfile
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
